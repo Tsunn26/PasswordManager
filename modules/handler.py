@@ -28,7 +28,7 @@ class PasswordHandler:
         if not isinstance(request, dict):
             return {
                 "success": False,
-                "error": "Yeu cau khong hop le."
+                "error": "Yêu cầu không hợp lệ."
             }
 
         action = request.get("action")
@@ -61,7 +61,7 @@ class PasswordHandler:
             else:
                 return {
                     "success": False,
-                    "error": "Action khong duoc ho tro."
+                    "error": "Action không được hỗ trợ."
                 }
 
         except (ValueError, TypeError, db.DatabaseError) as exc:
@@ -74,7 +74,7 @@ class PasswordHandler:
     # Neu chua co khoa AES thi khong cho phep thao tac voi tai khoan.
     def _require_unlock(self):
         if self.key is None:
-            raise ValueError("Vault dang khoa.")
+            raise ValueError("Vault đang khóa.")
 
     # Tao Vault moi bang Master Password.
     # Goi security.py de sinh salt, dan xuat khoa va luu metadata.
@@ -82,7 +82,7 @@ class PasswordHandler:
         password = request.get("master_password")
 
         if not isinstance(password, str) or not password:
-            raise ValueError("Master Password khong hop le.")
+            raise ValueError("Master Password không hợp lệ.")
 
         security.create_vault(password)
 
@@ -96,7 +96,7 @@ class PasswordHandler:
         password = request.get("master_password")
 
         if not isinstance(password, str) or not password:
-            raise ValueError("Master Password khong hop le.")
+            raise ValueError("Master Password không hợp lệ.")
 
         key = security.unlock_vault(password)
         self.key = key
@@ -125,16 +125,16 @@ class PasswordHandler:
         note = request.get("note", "")
 
         if not isinstance(website, str) or not website.strip():
-            raise ValueError("Website khong hop le.")
+            raise ValueError("Website không hợp lệ.")
 
         if not isinstance(username, str):
-            raise ValueError("Username khong hop le.")
+            raise ValueError("Username không hợp lệ.")
 
         if not isinstance(password, str):
-            raise ValueError("Password khong hop le.")
+            raise ValueError("Password không hợp lệ.")
 
         if not isinstance(note, str):
-            raise ValueError("Note khong hop le.")
+            raise ValueError("Note không hợp lệ.")
 
         account_id = security.save_password(
             website,
@@ -170,7 +170,7 @@ class PasswordHandler:
         account_id = request.get("id")
 
         if isinstance(account_id, bool) or not isinstance(account_id, int) or account_id <= 0:
-            raise ValueError("ID tai khoan khong hop le.")
+            raise ValueError("ID tài khoản không hợp lệ.")
 
         website = request.get("website")
         username = request.get("username")
@@ -179,7 +179,7 @@ class PasswordHandler:
 
         if website is not None:
             if not isinstance(website, str) or not website.strip():
-                raise ValueError("Website khong hop le.")
+                raise ValueError("Website không hợp lệ.")
 
         for field, value in (
             ("Username", username),
@@ -187,7 +187,7 @@ class PasswordHandler:
             ("Note", note)
         ):
             if value is not None and not isinstance(value, str):
-                raise ValueError(f"{field} khong hop le.")
+                raise ValueError(f"{field} không hợp lệ.")
 
         updated = security.update_password(
             account_id,
@@ -210,7 +210,7 @@ class PasswordHandler:
         account_id = request.get("id")
 
         if isinstance(account_id, bool) or not isinstance(account_id, int) or account_id <= 0:
-            raise ValueError("ID tai khoan khong hop le.")
+            raise ValueError("ID tài khoản không hợp lệ.")
 
         deleted = security.delete_password(account_id)
 
@@ -227,7 +227,7 @@ class PasswordHandler:
         keyword = request.get("keyword")
 
         if not isinstance(keyword, str):
-            raise ValueError("Tu khoa tim kiem khong hop le.")
+            raise ValueError("Từ khóa tìm kiếm không hợp lệ.")
 
         matches = db.search_account(keyword)
         matched_ids = {item["id"] for item in matches}
