@@ -31,13 +31,13 @@ VERIFICATION_TEXT = b"password-vault-verification"
 def derive_key(master_password, salt, iterations=ITERATIONS):
     """Dẫn xuất khóa 32 byte từ Master Password."""
     if not isinstance(master_password, str) or not master_password:
-        raise ValueError("Master Password khong duoc de trong.")
+        raise ValueError("Master Password không được để trong.")
 
     if not isinstance(salt, bytes) or len(salt) < 16:
-        raise ValueError("Salt khong hop le.")
+        raise ValueError("Salt không hợp lệ.")
 
     if not isinstance(iterations, int) or iterations < 1:
-        raise ValueError("So vong lap PBKDF2 khong hop le.")
+        raise ValueError("Số vòng lặp PBKDF2 không hợp lệ.")
 
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
@@ -54,7 +54,7 @@ def create_vault(master_password):
     db.init_db()
 
     if db.vault_exists():
-        raise ValueError("Vault da ton tai.")
+        raise ValueError("Vault đã tồn tại.")
 
     salt = os.urandom(SALT_LENGTH)
     key = derive_key(master_password, salt)
@@ -91,17 +91,17 @@ def unlock_vault(master_password):
     metadata = db.get_vault_metadata()
 
     if metadata is None:
-        raise ValueError("Vault chua duoc tao.")
+        raise ValueError("Vault chưa được tạo.")
 
     if metadata["kdf_name"] != KDF_NAME:
-        raise ValueError("KDF trong database khong duoc ho tro.")
+        raise ValueError("KDF trong database không được hỗ trợ.")
 
     try:
         params = json.loads(metadata["kdf_params"])
         iterations = int(params["iterations"])
 
         if iterations < 1:
-            raise ValueError("Tham so KDF khong hop le.")
+            raise ValueError("Tham số KDF không hợp lệ.")
 
         key = derive_key(
             master_password,
@@ -112,7 +112,7 @@ def unlock_vault(master_password):
         verification_data = bytes(metadata["verification_data"])
 
         if len(verification_data) <= NONCE_LENGTH:
-            raise ValueError("Du lieu xac minh khong hop le.")
+            raise ValueError("Dữ liệu xác minh không hợp lệ.")
 
         nonce = verification_data[:NONCE_LENGTH]
         ciphertext = verification_data[NONCE_LENGTH:]
@@ -124,20 +124,20 @@ def unlock_vault(master_password):
         )
 
         if plaintext != VERIFICATION_TEXT:
-            raise ValueError("Master Password khong dung.")
+            raise ValueError("Master Password không đúng.")
 
         return key
 
     except (InvalidTag, KeyError, TypeError, json.JSONDecodeError):
         raise ValueError(
-            "Master Password khong dung hoac metadata bi loi."
+            "Master Password không đúng hoặc metadata bị lỗi."
         ) from None
 
 
 def encrypt_password(password, key):
     """Mã hóa chuỗi bằng AES-GCM; trả về encrypted_data và nonce."""
     if not isinstance(password, str):
-        raise TypeError("Du lieu can ma hoa phai la chuoi.")
+        raise TypeError("Dữ liệu cần mã hóa phải là chuỗi.")
 
     nonce = os.urandom(NONCE_LENGTH)
 
@@ -162,7 +162,7 @@ def decrypt_password(encrypted_data, nonce, key):
 
     except (InvalidTag, UnicodeDecodeError, ValueError, TypeError):
         raise ValueError(
-            "Khong the giai ma: khoa hoac du lieu khong hop le."
+            "Không thể giải mã: khóa hoặc dữ liệu không hợp lệ."
         ) from None
 
 

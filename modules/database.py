@@ -81,7 +81,7 @@ def _connect() -> Iterator[sqlite3.Connection]:
         conn.commit()
     except sqlite3.Error as exc:
         conn.rollback()
-        raise DatabaseError(f"Loi co so du lieu: {exc}") from exc
+        raise DatabaseError(f"Lỗi cơ sở dữ liệu: {exc}") from exc
     except Exception:
         conn.rollback()
         raise
@@ -126,26 +126,26 @@ def init_db() -> None:
 # ---------------------------------------------------------------------------
 def _check_url(url) -> str:
     if not isinstance(url, str) or not url.strip():
-        raise ValueError("url phai la chuoi khong rong")
+        raise ValueError("url phải là chuỗi không rỗng")
     url = url.strip()
     if len(url) > MAX_URL_LENGTH:
-        raise ValueError("url qua dai")
+        raise ValueError("url quá dài")
     return url
 
 
 def _check_blob(value, name: str) -> bytes:
     if not isinstance(value, (bytes, bytearray, memoryview)):
-        raise ValueError(f"{name} phai la bytes")
+        raise ValueError(f"{name} phải là bytes")
     value = bytes(value)
     if not value:
-        raise ValueError(f"{name} khong duoc rong")
+        raise ValueError(f"{name} không được rỗng")
     return value
 
 
 def _check_id(account_id) -> int:
     # bool là subclass của int nên loại ra riêng.
     if isinstance(account_id, bool) or not isinstance(account_id, int) or account_id < 1:
-        raise ValueError("account_id phai la so nguyen duong")
+        raise ValueError("account_id phải là số nguyên dương")
     return account_id
 
 
@@ -202,7 +202,7 @@ def search_account(keyword: str) -> list:
     Ký tự đặc biệt của LIKE (% _ \\) được escape nên được hiểu là ký tự thường.
     """
     if not isinstance(keyword, str):
-        raise ValueError("keyword phai la chuoi")
+        raise ValueError("keyword phải là chuỗi")
     keyword = keyword.strip()
     if not keyword:
         return []
@@ -299,14 +299,14 @@ def save_vault_metadata(
         DatabaseError: nếu vault đã tồn tại (tránh ghi đè salt làm mất dữ liệu cũ).
     """
     if not isinstance(kdf_name, str) or not kdf_name.strip():
-        raise ValueError("kdf_name phai la chuoi khong rong")
+        raise ValueError("kdf_name phải là chuỗi không rỗng")
     if not isinstance(kdf_params, str) or not kdf_params.strip():
-        raise ValueError("kdf_params phai la chuoi (vi du JSON)")
+        raise ValueError("kdf_params phải là chuỗi (ví dụ JSON)")
     kdf_salt = _check_blob(kdf_salt, "kdf_salt")
     verification_data = _check_blob(verification_data, "verification_data")
     with _connect() as conn:
         if conn.execute("SELECT 1 FROM vault_metadata WHERE id = 1").fetchone():
-            raise DatabaseError("Vault da ton tai")
+            raise DatabaseError("Vault đã tồn tại")
         conn.execute(
             "INSERT INTO vault_metadata "
             "(id, kdf_name, kdf_salt, kdf_params, verification_data) "

@@ -1,0 +1,10 @@
+
+{
+  "name": "com.passwordmanager.host",
+  "description": "Native Messaging Host for Password Manager",
+  "path": "D:\\PasswordManager\\native_host\\run_host.bat",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://dikpacohfkdmclbjjiindcaodmmnhnhi/"
+  ]
+}

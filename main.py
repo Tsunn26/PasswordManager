@@ -48,12 +48,12 @@ def read_message(stream=None):
 
     # Gioi han 1 MB cho request de tranh du lieu qua lon.
     if message_length == 0 or message_length > 1024 * 1024:
-        raise ValueError("Kich thuoc thong diep khong hop le.")
+        raise ValueError("Kích thước thông điệp không hợp lệ.")
 
     message_bytes = read_exact(stream, message_length)
 
     if message_bytes is None:
-        raise ValueError("Thong diep bi thieu du lieu.")
+        raise ValueError("Thông điệp bị thiếu dữ liệu.")
 
     return json.loads(message_bytes.decode("utf-8"))
 
@@ -70,7 +70,7 @@ def send_message(response, stream=None):
     ).encode("utf-8")
 
     if len(message) > 1024 * 1024:
-        raise ValueError("Phan hoi vuot qua kich thuoc cho phep.")
+        raise ValueError("Phản hồi vượt quá kích thước cho phép.")
 
     stream.write(struct.pack("<I", len(message)))
     stream.write(message)
@@ -106,7 +106,7 @@ def main():
 
             response = {
                 "success": False,
-                "error": "Loi he thong."
+                "error": "Lỗi hệ thống."
             }
 
         send_message(response)
@@ -114,5 +114,14 @@ def main():
 
 # Chi khoi chay vong lap khi chay truc tiep main.py.
 # Khi import de test, main() se khong tu dong chay.
+
 if __name__ == "__main__":
+    # Dam bao stdin/stdout o che do binary tren Windows.
+    if sys.platform == "win32":
+        import msvcrt
+        import os
+
+        msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
+        msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
+
     main()

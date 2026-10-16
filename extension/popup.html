@@ -1,0 +1,91 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Manager</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h2>Password Manager</h2>
+            <p>Quản lý và bảo vệ mật khẩu</p>
+        </header>
+
+        <p id="message" role="status" aria-live="polite"></p>
+
+        <!-- Màn hình tạo Vault -->
+        <section id="create-screen" hidden>
+            <h3>Tạo Vault</h3>
+            <form id="create-form">
+                <input type="password"
+                       id="create-master"
+                       placeholder="Master Password"
+                       required>
+                <button type="submit">Tạo Vault</button>
+            </form>
+        </section>
+
+        <!-- Màn hình mở khóa Vault -->
+        <section id="unlock-screen" hidden>
+            <h3>Mở khóa Vault</h3>
+            <form id="unlock-form">
+                <input type="password"
+                       id="unlock-master"
+                       placeholder="Master Password"
+                       required>
+                <button type="submit">Mở khóa</button>
+            </form>
+        </section>
+
+        <!-- Màn hình quản lý mật khẩu -->
+        <section id="vault-screen" hidden>
+            <div class="toolbar">
+                <h3>Danh sách tài khoản</h3>
+                <button type="button"
+                        id="lock-btn"
+                        class="secondary">Khóa</button>
+            </div>
+
+            <input type="search"
+                   id="search-input"
+                   placeholder="Tìm theo website...">
+
+            <ul id="account-list"></ul>
+
+            <h3 id="form-title">Thêm tài khoản</h3>
+
+            <form id="account-form">
+                <input type="url"
+                       id="website"
+                       placeholder="https://example.com"
+                       required>
+
+                <input type="text"
+                       id="username"
+                       placeholder="Username">
+
+                <input type="password"
+                       id="password"
+                       placeholder="Password"
+                       required>
+
+                <textarea id="note"
+                          placeholder="Ghi chú"></textarea>
+
+                <button type="submit"
+                        id="save-btn">Lưu tài khoản</button>
+
+                <button type="button"
+                        id="cancel-btn"
+                        class="secondary"
+                        hidden>Hủy sửa</button>
+            </form>
+        </section>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

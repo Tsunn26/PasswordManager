@@ -1,0 +1,169 @@
+
+/* Bo cuc chung */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    width: 360px;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f6fb;
+    color: #253047;
+}
+
+.container {
+    padding: 18px;
+}
+
+/* Tieu de */
+header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+header h2 {
+    color: #2563eb;
+    margin-bottom: 6px;
+}
+
+header p {
+    color: #64748b;
+    font-size: 13px;
+}
+
+/* Cac khoi giao dien */
+section {
+    background: white;
+    padding: 16px;
+    margin-top: 12px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px #00000012;
+}
+
+h3 {
+    margin-top: 0;
+    font-size: 16px;
+}
+
+/* Form */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+input, textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    font-size: 13px;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 55px;
+}
+
+input:focus, textarea:focus {
+    outline: 2px solid #93c5fd;
+    border-color: #2563eb;
+}
+
+/* Nut bam */
+button {
+    padding: 10px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #1d4ed8;
+}
+
+button.secondary {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+button.secondary:hover {
+    background: #cbd5e1;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Thanh cong cu */
+.toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.toolbar button {
+    padding: 7px 12px;
+}
+
+/* Danh sach tai khoan */
+#account-list {
+    list-style: none;
+    padding: 0;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.account-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 8px;
+}
+
+.account-item strong {
+    display: block;
+    overflow-wrap: anywhere;
+}
+
+.account-item p {
+    color: #64748b;
+    font-size: 12px;
+}
+
+.account-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.account-actions button {
+    flex: 1;
+    font-size: 12px;
+    padding: 7px;
+}
+
+/* Thong bao */
+#message {
+    font-size: 13px;
+    min-height: 18px;
+    text-align: center;
+}
+
+#message.success {
+    color: #15803d;
+}
+
+#message.error {
+    color: #dc2626;
+}
+
+/* Dam bao section co hidden khong bi CSS ghi de */
+[hidden] {
+    display: none !important;
+}

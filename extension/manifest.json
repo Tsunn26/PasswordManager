@@ -1,0 +1,14 @@
+
+{
+  "manifest_version": 3,
+  "name": "Personal Password Manager",
+  "version": "1.0.0",
+  "description": "Quan ly va bao ve mat khau ca nhan",
+  "permissions": [
+    "nativeMessaging"
+  ],
+  "action": {
+    "default_title": "Password Manager",
+    "default_popup": "popup.html"
+  }
+}
