@@ -1,4 +1,6 @@
 
+
+
 @echo off
-cd /d "D:\PasswordManager"
-"D:\PasswordManager\.venv\Scripts\python.exe" -u "D:\PasswordManager\main.py"
+cd /d "D:\Project_Python\PasswordManager"
+"D:\Project_Python\PasswordManager\venv\Scripts\python.exe" -u "D:\Project_Python\PasswordManager\main.py"
