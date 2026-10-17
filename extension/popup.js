@@ -12,11 +12,32 @@ const HOST_NAME = "com.passwordmanager.host";
 let nativePort = null;
 let pendingRequests = [];
 
-// Hien thi thong bao thanh cong hoac loi.
+// Bien luu bo dem thoi gian an thong bao.
+let messageTimer = null;
+
+// Hien thi thong bao va tu dong an sau 3 giay.
 function showMessage(text, success = false) {
     const el = $("message");
+
+    // Huy bo dem cu neu co thong bao moi.
+    if (messageTimer !== null) {
+        clearTimeout(messageTimer);
+        messageTimer = null;
+    }
+
     el.textContent = text;
     el.className = success ? "success" : "error";
+
+    // Neu xoa thong bao thi khong can hen gio.
+    if (!text) {
+        return;
+    }
+
+    messageTimer = setTimeout(() => {
+        el.textContent = "";
+        el.className = "";
+        messageTimer = null;
+    }, 3000);
 }
 
 // Hien thi man hinh theo trang thai Vault.
