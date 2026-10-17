@@ -8,7 +8,7 @@ Nhiem vu:
 - Quan ly trang thai khoa/mo Vault.
 - Tra ket qua xu ly duoi dang dictionary.
 """
-
+import json
 from modules import database as db
 from modules import security
 
@@ -48,6 +48,9 @@ class PasswordHandler:
 
             elif action == "get_passwords":
                 return self.get_passwords()
+            
+            elif action == "reveal_password":
+                return self.reveal_password(request)
 
             elif action == "update_password":
                 return self.update_password(request)
@@ -154,11 +157,32 @@ class PasswordHandler:
     def get_passwords(self):
         self._require_unlock()
 
-        accounts = security.get_passwords(self.key)
+        accounts = db.get_accounts()
+        safe_accounts = []
+
+        for account in accounts:
+            full_account = db.get_account(account["id"])
+
+            plaintext = security.decrypt_password(
+                full_account["encrypted_data"],
+                full_account["nonce"],
+                self.key
+            )
+
+            payload = json.loads(plaintext)
+
+            safe_accounts.append({
+                "id": account["id"],
+                "website": account["url"],
+                "username": payload["username"],
+                "note": payload.get("note", ""),
+                "created_at": account["created_at"],
+                "updated_at": account["updated_at"]
+            })
 
         return {
             "success": True,
-            "accounts": accounts
+            "accounts": safe_accounts
         }
 
     # Cap nhat thong tin tai khoan theo ID.
@@ -234,11 +258,51 @@ class PasswordHandler:
 
         accounts = [
             account
-            for account in security.get_passwords(self.key)
+            for account in self.get_passwords()["accounts"]
             if account["id"] in matched_ids
         ]
 
         return {
             "success": True,
             "accounts": accounts
+        }
+
+    # Xac minh lai Master Password truoc khi xem mat khau.
+    def reveal_password(self, request):
+        self._require_unlock()
+
+        account_id = request.get("id")
+        master_password = request.get("master_password")
+
+        if (
+            isinstance(account_id, bool)
+            or not isinstance(account_id, int)
+            or account_id <= 0
+        ):
+            raise ValueError("ID tài khoản không hợp lệ.")
+
+        if not isinstance(master_password, str) or not master_password:
+            raise ValueError("Vui lòng nhập Master Password.")
+
+        # Xac minh lai Master Password.
+        key = security.unlock_vault(master_password)
+
+        # Tim tai khoan can xem.
+        account = db.get_account(account_id)
+
+        if account is None:
+            raise ValueError("Không tìm thấy tài khoản.")
+
+        # Giai ma dung tai khoan duoc yeu cau.
+        plaintext = security.decrypt_password(
+            account["encrypted_data"],
+            account["nonce"],
+            key
+        )
+
+        payload = json.loads(plaintext)
+
+        return {
+            "success": True,
+            "password": payload["password"]
         }

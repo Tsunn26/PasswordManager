@@ -55,6 +55,30 @@
 
             <ul id="account-list"></ul>
 
+            <!-- Form xac minh Master Password truoc khi xem mat khau -->
+            <section id="reveal-section" hidden>
+                <h3>Xác minh Master Password</h3>
+
+                <form id="reveal-form">
+                    <input
+                        type="password"
+                        id="reveal-master"
+                        placeholder="Nhập lại Master Password"
+                        autocomplete="off"
+                        required
+                    >
+
+                    <button type="submit">Xác nhận và xem</button>
+
+                    <button
+                        type="button"
+                        id="cancel-reveal"
+                        class="secondary">
+                        Hủy
+                    </button>
+                </form>
+            </section>            
+
             <h3 id="form-title">Thêm tài khoản</h3>
 
             <form id="account-form">

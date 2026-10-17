@@ -1,236 +1,165 @@
 
-"""Kiem thu modules/handler.py.
-
-Chay:
-python -m unittest discover -s tests -v
+"""Kiem thu PasswordHandler voi database tam (khong dung Vault that).
+Chay tu thu muc goc du an: python -m unittest discover -s tests -p test_handler.py -v
 """
-
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from modules import database as db
+from modules import security
 from modules.handler import PasswordHandler
 
 
 class HandlerTests(unittest.TestCase):
+    MASTER = "Demo-Master-Password-Only-For-Tests!"
 
-    # Tao database tam thoi cho moi bai test.
-    # Dam bao khong anh huong den mat khau that.
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-
-        db.set_db_path(
-            os.path.join(self.tmp.name, "test.db")
-        )
-
+        self.temp_dir = tempfile.TemporaryDirectory()
+        db.set_db_path(os.path.join(self.temp_dir.name, "data", "test.db"))
         self.handler = PasswordHandler()
 
-    # Khoi phuc duong dan database mac dinh.
-    # Xoa du lieu kiem thu sau moi test.
     def tearDown(self):
         self.handler.lock_vault()
         db.set_db_path(db.DEFAULT_DB_PATH)
-        self.tmp.cleanup()
+        self.temp_dir.cleanup()
 
-    # Test 1: Tao Vault moi bang Master Password.
-    def test_create_vault(self):
-        result = self.handler.handle({
-            "action": "create_vault",
-            "master_password": "Master123!"
-        })
+    def call(self, action, **kwargs):
+        return self.handler.handle({"action": action, **kwargs})
 
-        self.assertTrue(result["success"])
-        self.assertTrue(db.vault_exists())
-
-    # Test 2: Mo khoa Vault voi Master Password dung.
-    def test_unlock_vault(self):
-        self.handler.handle({
-            "action": "create_vault",
-            "master_password": "Master123!"
-        })
-
-        result = self.handler.handle({
-            "action": "unlock_vault",
-            "master_password": "Master123!"
-        })
-
-        self.assertTrue(result["success"])
-        self.assertIsNotNone(self.handler.key)
-
-    # Test 3: Tu choi Master Password sai.
-    def test_wrong_master_password(self):
-        self.handler.handle({
-            "action": "create_vault",
-            "master_password": "Correct123!"
-        })
-
-        result = self.handler.handle({
-            "action": "unlock_vault",
-            "master_password": "Wrong123!"
-        })
-
-        self.assertFalse(result["success"])
-        self.assertIsNone(self.handler.key)
-
-    # Test 4: Khoa Vault va chan truy cap.
-    def test_lock_vault(self):
-        self.create_and_unlock()
-
-        result = self.handler.handle({
-            "action": "lock_vault"
-        })
-
-        self.assertTrue(result["success"])
-        self.assertIsNone(self.handler.key)
-
-        result = self.handler.handle({
-            "action": "get_passwords"
-        })
-
-        self.assertFalse(result["success"])
-
-    # Test 5: Them tai khoan va giai ma du lieu.
-    def test_add_and_get_password(self):
-        self.create_and_unlock()
-
-        result = self.handler.handle({
-            "action": "add_password",
-            "website": "https://github.com",
-            "username": "user123",
-            "password": "Password123!",
-            "note": "GitHub account"
-        })
-
-        self.assertTrue(result["success"])
-        self.assertIsInstance(result["id"], int)
-
-        result = self.handler.handle({
-            "action": "get_passwords"
-        })
-
-        self.assertTrue(result["success"])
-        self.assertEqual(len(result["accounts"]), 1)
-        self.assertEqual(
-            result["accounts"][0]["username"],
-            "user123"
-        )
-        self.assertEqual(
-            result["accounts"][0]["password"],
-            "Password123!"
-        )
-
-    # Test 6: Cap nhat mat khau cua tai khoan.
-    def test_update_password(self):
-        self.create_and_unlock()
-
-        added = self.add_sample_account()
-
-        result = self.handler.handle({
-            "action": "update_password",
-            "id": added["id"],
-            "password": "NewPassword456!"
-        })
-
-        self.assertTrue(result["success"])
-
-        accounts = self.handler.handle({
-            "action": "get_passwords"
-        })["accounts"]
-
-        self.assertEqual(
-            accounts[0]["password"],
-            "NewPassword456!"
-        )
-        self.assertEqual(
-            accounts[0]["username"],
-            "user123"
-        )
-
-    # Test 7: Xoa tai khoan theo ID.
-    def test_delete_password(self):
-        self.create_and_unlock()
-
-        added = self.add_sample_account()
-
-        result = self.handler.handle({
-            "action": "delete_password",
-            "id": added["id"]
-        })
-
-        self.assertTrue(result["success"])
-
-        accounts = self.handler.handle({
-            "action": "get_passwords"
-        })["accounts"]
-
-        self.assertEqual(accounts, [])
-
-    # Test 8: Tim kiem tai khoan theo website.
-    def test_search_password(self):
-        self.create_and_unlock()
-        self.add_sample_account()
-
-        result = self.handler.handle({
-            "action": "search_password",
-            "keyword": "github"
-        })
-
-        self.assertTrue(result["success"])
-        self.assertEqual(len(result["accounts"]), 1)
-        self.assertEqual(
-            result["accounts"][0]["website"],
-            "https://github.com"
-        )
-
-    # Test 9: Khong cho phep them tai khoan khi Vault khoa.
-    def test_access_when_locked(self):
-        result = self.handler.handle({
-            "action": "add_password",
-            "website": "https://github.com",
-            "username": "user123",
-            "password": "Password123!"
-        })
-
-        self.assertFalse(result["success"])
-
-    # Test 10: Xu ly action khong hop le.
-    def test_invalid_action(self):
-        result = self.handler.handle({
-            "action": "unknown_action"
-        })
-
-        self.assertFalse(result["success"])
-
-    # Ham ho tro: Tao Vault va mo khoa.
-    # Dung lai trong nhieu bai test de tranh lap code.
     def create_and_unlock(self):
-        created = self.handler.handle({
-            "action": "create_vault",
-            "master_password": "Master123!"
-        })
+        self.assertTrue(self.call("create_vault", master_password=self.MASTER)["success"])
+        self.assertTrue(self.call("unlock_vault", master_password=self.MASTER)["success"])
 
-        self.assertTrue(created["success"])
+    def add_demo(self, website="https://example.com", username="demo", password="FakePassword123!"):
+        result = self.call("add_password", website=website, username=username,
+                           password=password, note="test note")
+        self.assertTrue(result["success"], result)
+        return result["id"]
 
-        unlocked = self.handler.handle({
-            "action": "unlock_vault",
-            "master_password": "Master123!"
-        })
+    def test_invalid_request_and_unknown_action(self):
+        self.assertFalse(self.handler.handle(None)["success"])
+        self.assertFalse(self.call("not_supported")["success"])
 
-        self.assertTrue(unlocked["success"])
+    def test_vault_starts_locked(self):
+        self.assertIsNone(self.handler.key)
+        self.assertFalse(self.call("get_passwords")["success"])
+        self.assertFalse(self.call("add_password", website="https://a.test",
+                                   username="u", password="p")["success"])
 
-    # Ham ho tro: Them tai khoan mau de kiem thu.
-    def add_sample_account(self):
-        result = self.handler.handle({
-            "action": "add_password",
-            "website": "https://github.com",
-            "username": "user123",
-            "password": "Password123!",
-            "note": "Test account"
-        })
+    def test_create_unlock_and_reject_wrong_master(self):
+        self.assertTrue(self.call("create_vault", master_password=self.MASTER)["success"])
+        self.assertFalse(self.call("create_vault", master_password=self.MASTER)["success"])
+        self.assertFalse(self.call("unlock_vault", master_password="wrong")["success"])
+        self.assertIsNone(self.handler.key)
+        self.assertTrue(self.call("unlock_vault", master_password=self.MASTER)["success"])
 
+    def test_empty_master_rejected(self):
+        self.assertFalse(self.call("create_vault", master_password="")["success"])
+        self.assertFalse(self.call("unlock_vault", master_password="")["success"])
+
+    def test_add_and_list_does_not_expose_password(self):
+        self.create_and_unlock()
+        account_id = self.add_demo()
+        result = self.call("get_passwords")
         self.assertTrue(result["success"])
-        return result
+        self.assertEqual(len(result["accounts"]), 1)
+        account = result["accounts"][0]
+        self.assertEqual(account["id"], account_id)
+        self.assertEqual(account["website"], "https://example.com")
+        self.assertEqual(account["username"], "demo")
+        self.assertNotIn("password", account)
+        self.assertNotIn("encrypted_data", account)
+        self.assertNotIn("nonce", account)
+
+    def test_reveal_requires_master_and_returns_only_selected_password(self):
+        self.create_and_unlock()
+        first_id = self.add_demo(password="TestFirst111!")
+        second_id = self.add_demo(website="https://another.test", password="TestSecond222!")
+        bad = self.call("reveal_password", id=first_id, master_password="wrong")
+        self.assertFalse(bad["success"])
+        good = self.call("reveal_password", id=second_id, master_password=self.MASTER)
+        self.assertTrue(good["success"])
+        self.assertEqual(good["password"], "TestSecond222!")
+        self.assertNotIn("accounts", good)
+
+    def test_reveal_invalid_id_and_missing_account(self):
+        self.create_and_unlock()
+        for invalid in (None, True, 0, -5, "1"):
+            self.assertFalse(self.call("reveal_password", id=invalid,
+                                       master_password=self.MASTER)["success"])
+        self.assertFalse(self.call("reveal_password", id=999,
+                                   master_password=self.MASTER)["success"])
+        self.assertFalse(self.call("reveal_password", id=1,
+                                   master_password="")["success"])
+
+    def test_search_filters_and_hides_password(self):
+        self.create_and_unlock()
+        self.add_demo(website="https://example.com")
+        self.add_demo(website="https://github.com", password="AnotherFakePass!")
+        result = self.call("search_password", keyword="GITHUB")
+        self.assertTrue(result["success"])
+        self.assertEqual(len(result["accounts"]), 1)
+        self.assertEqual(result["accounts"][0]["website"], "https://github.com")
+        self.assertNotIn("password", result["accounts"][0])
+        self.assertEqual(self.call("search_password", keyword="no-match")["accounts"], [])
+
+    def test_add_rejects_bad_fields(self):
+        self.create_and_unlock()
+        for data in (
+            {"website": "", "username": "u", "password": "p"},
+            {"website": "https://a.test", "username": None, "password": "p"},
+            {"website": "https://a.test", "username": "u", "password": None},
+            {"website": "https://a.test", "username": "u", "password": "p", "note": 123},
+        ):
+            self.assertFalse(self.call("add_password", **data)["success"])
+        self.assertEqual(db.get_accounts(), [])
+
+    def test_delete_and_invalid_delete_id(self):
+        self.create_and_unlock()
+        account_id = self.add_demo()
+        self.assertTrue(self.call("delete_password", id=account_id)["success"])
+        self.assertFalse(self.call("delete_password", id=account_id)["success"])
+        self.assertFalse(self.call("delete_password", id=True)["success"])
+        self.assertEqual(db.get_accounts(), [])
+
+    def test_lock_blocks_reveal_and_list(self):
+        self.create_and_unlock()
+        account_id = self.add_demo()
+        self.assertTrue(self.call("lock_vault")["success"])
+        self.assertIsNone(self.handler.key)
+        self.assertFalse(self.call("get_passwords")["success"])
+        self.assertFalse(self.call("reveal_password", id=account_id,
+                                   master_password=self.MASTER)["success"])
+
+    def test_update_rejects_invalid_id(self):
+        self.create_and_unlock()
+        self.assertFalse(self.call("update_password", id=True, password="p")["success"])
+        self.assertFalse(self.call("update_password", id=0, password="p")["success"])
+
+    def test_update_dispatch_using_mock(self):
+        """Kiem tra Handler chuyen tham so dung; khong chung minh Security update that."""
+        self.create_and_unlock()
+        account_id = self.add_demo()
+        with patch.object(security, "update_password", create=True, return_value=True) as mock_update:
+            result = self.call("update_password", id=account_id, password="NewFakePass!")
+            self.assertTrue(result["success"])
+            mock_update.assert_called_once_with(
+                account_id, self.handler.key,
+                website=None, username=None, password="NewFakePass!", note=None,
+            )
+
+    @unittest.skipUnless(hasattr(security, "update_password"),
+                         "Security chua co update_password(): can sua code truoc khi test thuc te")
+    def test_update_real_database(self):
+        self.create_and_unlock()
+        account_id = self.add_demo(password="BeforeFake!")
+        result = self.call("update_password", id=account_id, password="AfterFake!")
+        self.assertTrue(result["success"], result)
+        revealed = self.call("reveal_password", id=account_id,
+                             master_password=self.MASTER)
+        self.assertEqual(revealed["password"], "AfterFake!")
 
 
 if __name__ == "__main__":

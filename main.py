@@ -13,6 +13,7 @@ Giao thuc Native Messaging:
 import json
 import struct
 import sys
+import traceback
 
 from modules.handler import PasswordHandler
 
@@ -102,7 +103,7 @@ def main():
         except Exception:
             # Khong gui chi tiet loi noi bo cho Extension.
             # stderr dung de ghi loi, stdout chi danh cho JSON.
-            print("Internal host error", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
 
             response = {
                 "success": False,
