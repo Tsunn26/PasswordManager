@@ -185,7 +185,7 @@ def save_password(website, username, password, key, note=""):
         nonce,
     )
 
-
+"""   
 def get_passwords(key):
     """Lấy và giải mã danh sách tài khoản."""
     results = []
@@ -265,8 +265,29 @@ def update_password(
         nonce,
         url=website,
     )
+"""
+
+
 
 
 def delete_password(account_id):
     """Xóa tài khoản qua database."""
     return db.delete_account(account_id)
+
+# thêm hàm xem mật khẩu
+
+def get_password(account_id, key):
+    """Lấy mật khẩu của một tài khoản theo ID."""
+    account = db.get_account(account_id)
+
+    if account is None:
+        raise ValueError("Không tìm thấy tài khoản.")
+
+    plaintext = decrypt_password(
+        account["encrypted_data"],
+        account["nonce"],
+        key,
+    )
+
+    payload = json.loads(plaintext)
+    return payload["password"]
