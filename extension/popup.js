@@ -5,6 +5,12 @@ const $ = (id) => document.getElementById(id);
 let editingId = null;
 let accounts = [];
 
+// ID tai khoan dang yeu cau xem mat khau.
+let revealingId = null;
+
+// Bo dem tu dong an mat khau.
+let revealTimer = null;
+
 // Ten Native Host phai trung voi host.json.
 const HOST_NAME = "com.passwordmanager.host";
 
@@ -42,6 +48,9 @@ function showMessage(text, success = false) {
 
 // Hien thi man hinh theo trang thai Vault.
 function showScreen(screen) {
+    console.log("Chuyen man hinh sang:", screen);
+    console.trace("Vi tri goi showScreen");
+
     for (const id of [
         "create-screen",
         "unlock-screen",
@@ -232,6 +241,15 @@ async function loadAccounts(keyword = "") {
 
         const result = await sendRequest(request);
 
+        // Kiem tra so luong tai khoan Backend tra ve.
+        console.log("So tai khoan:", result.accounts?.length);
+        console.log(
+            "Cac truong du lieu:",
+            result.accounts?.[0]
+                ? Object.keys(result.accounts[0])
+                : []
+        );
+
         accounts = result.accounts;
         renderAccounts();
     } catch (error) {
@@ -255,12 +273,14 @@ function renderAccounts() {
     for (const account of accounts) {
         const item = document.createElement("li");
         item.className = "account-item";
+        item.dataset.accountId = String(account.id);
 
         const title = document.createElement("strong");
         title.textContent = account.website;
 
         const info = document.createElement("p");
         info.textContent = `${account.username} | ••••••••`;
+        info.className = "account-info";
 
         const actions = document.createElement("div");
         actions.className = "account-actions";
@@ -270,15 +290,128 @@ function renderAccounts() {
         editBtn.textContent = "Sửa";
         editBtn.onclick = () => editAccount(account);
 
+        // Tao nut Xem mat khau.
+        const viewBtn = document.createElement("button");
+        viewBtn.type = "button";
+        viewBtn.className = "secondary";
+        viewBtn.textContent = "👁 Xem";
+
+        viewBtn.onclick = () => {
+            showRevealForm(account.id);
+        };
+
         const deleteBtn = document.createElement("button");
         deleteBtn.type = "button";
         deleteBtn.className = "secondary";
         deleteBtn.textContent = "Xóa";
         deleteBtn.onclick = () => deleteAccount(account.id);
 
-        actions.append(editBtn, deleteBtn);
+        actions.append(viewBtn, editBtn, deleteBtn);
         item.append(title, info, actions);
         list.appendChild(item);
+    }
+}
+
+// Hien form nhap lai Master Password.
+function showRevealForm(accountId) {
+    // Huy bo dem hien thi mat khau cu.
+    clearTimeout(revealTimer);
+    revealTimer = null;
+
+    revealingId = accountId;
+
+    // Xoa Master Password da nhap truoc do.
+    $("reveal-master").value = "";
+
+    // Hien form xac minh.
+    $("reveal-section").hidden = false;
+
+    // Dua con tro vao o nhap.
+    $("reveal-master").focus();
+
+    showMessage("");
+}
+
+
+// Huy thao tac xem mat khau.
+function cancelReveal() {
+    revealingId = null;
+
+    clearTimeout(revealTimer);
+    revealTimer = null;
+
+    $("reveal-master").value = "";
+    $("reveal-section").hidden = true;
+
+    // Tai lai danh sach de che mat khau.
+    renderAccounts();
+}
+
+// Xac minh Master Password va hien mat khau.
+async function revealPassword(event) {
+    // Ngan form tai lai trang.
+    event.preventDefault();
+
+    if (revealingId === null) {
+        showMessage("Chưa chọn tài khoản cần xem.");
+        return;
+    }
+
+    const accountId = revealingId;
+    const masterPassword = $("reveal-master").value;
+
+    try {
+        const result = await sendRequest({
+            action: "reveal_password",
+            id: accountId,
+            master_password: masterPassword
+        });
+
+        // Xoa Master Password khoi o nhap.
+        $("reveal-master").value = "";
+
+        // Dong form xac minh.
+        $("reveal-section").hidden = true;
+        revealingId = null;
+
+        // Tim tai khoan dang hien thi.
+        const account = accounts.find(a => a.id === accountId);
+
+        if (!account) {
+            showMessage("Không tìm thấy tài khoản.");
+            return;
+        }
+
+        // Tim dung dong tai khoan theo ID.
+        const item = [...$("account-list").children].find(
+            li => li.dataset.accountId === String(accountId)
+        );
+
+        if (!item) {
+            showMessage("Không tìm thấy tài khoản trên giao diện.");
+            return;
+        }
+
+        const info = item.querySelector(".account-info");
+
+        if (!info) {
+            showMessage("Không tìm thấy vị trí hiển thị mật khẩu.");
+            return;
+        }
+
+        // Hien mat khau trong 10 giay.
+        info.textContent = `${account.username} | ${result.password}`;
+
+        clearTimeout(revealTimer);
+
+        revealTimer = setTimeout(() => {
+            info.textContent = `${account.username} | ••••••••`;
+            revealTimer = null;
+        }, 10000);
+
+    } catch (error) {
+        $("reveal-master").value = "";
+        showMessage(error.message);
     }
 }
 
@@ -364,6 +497,8 @@ function init() {
     $("account-form").addEventListener("submit", saveAccount);
     $("lock-btn").addEventListener("click", lockVault);
     $("cancel-btn").addEventListener("click", resetForm);
+    $("cancel-reveal").addEventListener("click", cancelReveal);
+    $("reveal-form").addEventListener("submit", revealPassword);
 
     $("search-input").addEventListener("input", (event) => {
         loadAccounts(event.target.value);

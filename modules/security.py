@@ -187,7 +187,7 @@ def save_password(website, username, password, key, note=""):
 
 """   
 def get_passwords(key):
-    """Lấy và giải mã danh sách tài khoản."""
+    #Lấy và giải mã danh sách tài khoản.
     results = []
 
     for item in db.get_accounts():
@@ -215,7 +215,7 @@ def get_passwords(key):
         })
 
     return results
-
+"""
 
 def update_password(
     account_id,
@@ -225,7 +225,7 @@ def update_password(
     password=None,
     note=None,
 ):
-    """Cập nhật tài khoản; giữ nguyên trường nhạy cảm không được chỉ định."""
+    #Cập nhật tài khoản; giữ nguyên trường nhạy cảm không được chỉ định.#
     account = db.get_account(account_id)
 
     if account is None:
@@ -265,13 +265,10 @@ def update_password(
         nonce,
         url=website,
     )
-"""
-
-
 
 
 def delete_password(account_id):
-    """Xóa tài khoản qua database."""
+    #Xóa tài khoản qua database.
     return db.delete_account(account_id)
 
 # thêm hàm xem mật khẩu
