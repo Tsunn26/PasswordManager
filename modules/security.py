@@ -272,7 +272,6 @@ def delete_password(account_id):
     return db.delete_account(account_id)
 
 # thêm hàm xem mật khẩu
-
 def get_password(account_id, key):
     """Lấy mật khẩu của một tài khoản theo ID."""
     account = db.get_account(account_id)

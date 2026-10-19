@@ -1,12 +1,12 @@
 
-"""Module Handler - Xu ly yeu cau cua Password Manager.
+"""Module Handler - Xử lý yêu cầu của Password Manager.
 
-Nhiem vu:
-- Nhan va phan loai yeu cau tu Browser Extension.
-- Goi security.py de quan ly Vault va ma hoa du lieu.
-- Goi database.py de tim kiem tai khoan.
-- Quan ly trang thai khoa/mo Vault.
-- Tra ket qua xu ly duoi dang dictionary.
+Nhiệm vụ:
+- Nhận và phân loại yêu cầu từ Browser Extension.
+- Gọi security.py để quản lý Vault và mã hóa dữ liệu.
+- Gọi database.py để tìm kiếm tài khoản.
+- Quản lý trạng thái khóa/mở Vault.
+- Trả kết quả xử lý dưới dạng dictionary.
 """
 import json
 from modules import database as db
@@ -15,15 +15,15 @@ from modules import security
 
 class PasswordHandler:
 
-    # Khoi tao Handler va ket noi co so du lieu.
-    # Ban dau Vault o trang thai khoa (self.key = None).
+    # Khởi tạo Handler và kết nối cơ sở dữ liệu.
+    # Ban đầu Vault ở trạng thái khóa (self.key = None).
     def __init__(self):
         self.key = None
         db.init_db()
 
-    # Ham trung tam: nhan request dang dictionary.
-    # Dua vao action de chuyen yeu cau den ham xu ly tuong ung.
-    # Ket qua tra ve co dang {"success": True/False, ...}.
+    # Hàm trung tâm: nhận request dạng dictionary.
+    # Dựa vào action để chuyển yêu cầu đến hàm xử lý tương ứng.
+    # Kết quả trả về có dạng {"success": True/False, ...}.
     def handle(self, request):
         if not isinstance(request, dict):
             return {
@@ -73,14 +73,14 @@ class PasswordHandler:
                 "error": str(exc)
             }
 
-    # Kiem tra Vault da duoc mo khoa hay chua.
-    # Neu chua co khoa AES thi khong cho phep thao tac voi tai khoan.
+    # Kiểm tra Vault đã được mở khóa hay chưa.
+    # Nếu chưa có khóa AES thì không cho phép thao tác với tài khoản.
     def _require_unlock(self):
         if self.key is None:
             raise ValueError("Vault đang khóa.")
 
-    # Tao Vault moi bang Master Password.
-    # Goi security.py de sinh salt, dan xuat khoa va luu metadata.
+    # Tạo Vault mới bằng Master Password.
+    # Gọi security.py để sinh salt, dẫn xuất khóa và lưu metadata.
     def create_vault(self, request):
         password = request.get("master_password")
 
@@ -93,8 +93,8 @@ class PasswordHandler:
             "success": True
         }
 
-    # Mo khoa Vault bang Master Password.
-    # Neu xac minh thanh cong, luu khoa AES vao self.key.
+    # Mở khóa Vault bằng Master Password.
+    # Nếu xác minh thành công, lưu khóa AES vào self.key.
     def unlock_vault(self, request):
         password = request.get("master_password")
 
@@ -108,8 +108,8 @@ class PasswordHandler:
             "success": True
         }
 
-    # Khoa Vault bang cach xoa tham chieu den khoa AES.
-    # Sau khi khoa, cac thao tac voi tai khoan se bi tu choi.
+    # Khóa Vault bằng cách xóa tham chiếu đến khóa AES.
+    # Sau khi khóa, các thao tác với tài khoản sẽ bị từ chối.
     def lock_vault(self):
         self.key = None
 
@@ -117,8 +117,8 @@ class PasswordHandler:
             "success": True
         }
 
-    # Them tai khoan moi vao Vault.
-    # security.py ma hoa username, password va note truoc khi luu.
+    # Thêm tài khoản mới vào Vault.
+    # security.py mã hóa username, password và note trước khi lưu.
     def add_password(self, request):
         self._require_unlock()
 
@@ -152,8 +152,8 @@ class PasswordHandler:
             "id": account_id
         }
 
-    # Lay danh sach tai khoan da luu trong Vault.
-    # security.py doc du lieu tu database va giai ma bang khoa AES.
+    # Lấy danh sách tài khoản đã lưu trong Vault.
+    # security.py đọc dữ liệu từ database và giải mã bằng khóa AES.
     def get_passwords(self):
         self._require_unlock()
 
@@ -185,9 +185,9 @@ class PasswordHandler:
             "accounts": safe_accounts
         }
 
-    # Cap nhat thong tin tai khoan theo ID.
-    # Chi thay doi cac truong duoc cung cap trong request.
-    # Du lieu nhay cam se duoc ma hoa lai truoc khi luu.
+    # Cập nhật thông tin tài khoản theo ID.
+    # Chỉ thay đổi các trường được cung cấp trong request.
+    # Dữ liệu nhạy cảm sẽ được mã hóa lại trước khi lưu.
     def update_password(self, request):
         self._require_unlock()
 
@@ -226,8 +226,8 @@ class PasswordHandler:
             "success": updated
         }
 
-    # Xoa tai khoan theo ID.
-    # Chi cho phep xoa khi Vault da duoc mo khoa.
+    # Xóa tài khoản theo ID.
+    # Chỉ cho phép xóa khi Vault đã được mở khóa.
     def delete_password(self, request):
         self._require_unlock()
 
@@ -242,9 +242,9 @@ class PasswordHandler:
             "success": deleted
         }
 
-    # Tim kiem tai khoan theo website.
-    # database.py tim ID phu hop, security.py giai ma du lieu.
-    # Chi tra ve cac tai khoan trung voi ket qua tim kiem.
+    # Tìm kiếm tài khoản theo website.
+    # database.py tìm ID phù hợp, security.py giải mã dữ liệu.
+    # Chỉ trả về các tài khoản trung với kết quả tìm kiếm.
     def search_password(self, request):
         self._require_unlock()
 
@@ -267,7 +267,7 @@ class PasswordHandler:
             "accounts": accounts
         }
 
-    # Xac minh lai Master Password truoc khi xem mat khau.
+    # Xác minh lại Master Password trước khi xem mật khẩu.
     def reveal_password(self, request):
         self._require_unlock()
 
@@ -284,16 +284,16 @@ class PasswordHandler:
         if not isinstance(master_password, str) or not master_password:
             raise ValueError("Vui lòng nhập Master Password.")
 
-        # Xac minh lai Master Password.
+        # Xác minh lại Master Password.
         key = security.unlock_vault(master_password)
 
-        # Tim tai khoan can xem.
+        # Tìm tài khoản cần xem.
         account = db.get_account(account_id)
 
         if account is None:
             raise ValueError("Không tìm thấy tài khoản.")
 
-        # Giai ma dung tai khoan duoc yeu cau.
+        # Giải mã dùng tài khoản được yêu cầu.
         plaintext = security.decrypt_password(
             account["encrypted_data"],
             account["nonce"],
