@@ -120,9 +120,13 @@ async function sendRequest(request) {
     });
 
     if (!response || response.success !== true) {
-        throw new Error(
+        const error = new Error(
             response?.error || "Không kết nối được Backend."
         );
+
+        // Giu phan hoi goc de biet day la loi trung lap.
+        error.response = response;
+        throw error;
     }
 
     return response;
@@ -220,6 +224,7 @@ async function lockVault() {
         // Xoa form dang nhap va chinh sua.
         $("unlock-master").value = "";
         resetForm();
+        hideDuplicatePrompt();
 
         // Chuyen ve man hinh mo khoa.
         showScreen("unlock-screen");
@@ -464,8 +469,56 @@ async function saveAccount(event) {
         await loadAccounts($("search-input").value);
         showMessage("Lưu tài khoản thành công.", true);
     } catch (error) {
+        // Trung website + username: hoi nguoi dung co muon cap nhat khong.
+        if (error.response?.duplicate === true) {
+            showDuplicatePrompt(request);
+            return;
+        }
+
         showMessage(error.message);
     }
+}
+
+// Request them moi dang cho nguoi dung xac nhan cap nhat.
+let pendingDuplicate = null;
+
+// Hien hop thoai hoi co cap nhat mat khau moi khong.
+function showDuplicatePrompt(request) {
+    pendingDuplicate = request;
+    showMessage("");
+    $("duplicate-section").hidden = false;
+}
+
+// Dong hop thoai trung lap va xoa request dang cho.
+function hideDuplicatePrompt() {
+    pendingDuplicate = null;
+    $("duplicate-section").hidden = true;
+}
+
+// Chon "Co": gui lai request voi overwrite = true.
+async function confirmOverwrite() {
+    if (pendingDuplicate === null) {
+        return;
+    }
+
+    const request = { ...pendingDuplicate, overwrite: true };
+    hideDuplicatePrompt();
+
+    try {
+        await sendRequest(request);
+
+        resetForm();
+        await loadAccounts($("search-input").value);
+        showMessage("Đã cập nhật mật khẩu mới.", true);
+    } catch (error) {
+        showMessage(error.message);
+    }
+}
+
+// Chon "Khong": giu nguyen du lieu cu, khong luu gi.
+function declineOverwrite() {
+    hideDuplicatePrompt();
+    showMessage("Đã giữ nguyên mật khẩu cũ.", true);
 }
 
 // Xoa tai khoan sau khi nguoi dung xac nhan.
@@ -498,6 +551,8 @@ function init() {
     $("lock-btn").addEventListener("click", lockVault);
     $("cancel-btn").addEventListener("click", resetForm);
     $("cancel-reveal").addEventListener("click", cancelReveal);
+    $("duplicate-yes").addEventListener("click", confirmOverwrite);
+    $("duplicate-no").addEventListener("click", declineOverwrite);
     $("reveal-form").addEventListener("submit", revealPassword);
 
     $("search-input").addEventListener("input", (event) => {

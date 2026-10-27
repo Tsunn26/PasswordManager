@@ -148,6 +148,24 @@ button:disabled {
     padding: 7px;
 }
 
+/* Hop thoai trung lap */
+#duplicate-section {
+    border: 1px solid #f59e0b;
+    background: #fffbeb;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.duplicate-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.duplicate-actions button {
+    flex: 1;
+}
+
 /* Thong bao */
 #message {
     font-size: 13px;

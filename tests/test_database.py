@@ -77,6 +77,17 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(db.get_account(i)["url"], "https://b.com")
         self.assertFalse(db.update_account(999, b"x", b"y"))
 
+    def test_find_accounts_by_url_exact_normalized(self):
+        a = db.add_account("https://Example.com/", b"c1", b"n1")
+        db.add_account("https://example.com/login", b"c2", b"n2")
+        db.add_account("https://other.com", b"c3", b"n3")
+        found = db.find_accounts_by_url("  HTTPS://example.COM ")
+        self.assertEqual([r["id"] for r in found], [a])
+        self.assertIn("encrypted_data", found[0])
+        self.assertEqual(db.find_accounts_by_url("https://none.com"), [])
+        with self.assertRaises(ValueError):
+            db.find_accounts_by_url("  ")
+
     def test_invalid_input_rejected(self):
         for args in [("", b"c", b"n"), (None, b"c", b"n"),
                      ("https://a.com", "text", b"n"),

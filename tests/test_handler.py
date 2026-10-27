@@ -161,6 +161,42 @@ class HandlerTests(unittest.TestCase):
                              master_password=self.MASTER)
         self.assertEqual(revealed["password"], "AfterFake!")
 
+    def test_duplicate_asks_before_saving(self):
+        self.create_and_unlock()
+        first_id = self.add_demo(password="OldFake!")
+        result = self.call("add_password", website="https://example.com/",
+                           username=" DEMO ", password="NewFake!", note="")
+        self.assertFalse(result["success"])
+        self.assertTrue(result["duplicate"])
+        self.assertEqual(result["id"], first_id)
+        self.assertIn("cập nhật mật khẩu mới", result["error"])
+        self.assertEqual(len(self.call("get_passwords")["accounts"]), 1)
+        revealed = self.call("reveal_password", id=first_id,
+                             master_password=self.MASTER)
+        self.assertEqual(revealed["password"], "OldFake!")
+
+    def test_duplicate_overwrite_updates_password(self):
+        self.create_and_unlock()
+        first_id = self.add_demo(password="OldFake!")
+        result = self.call("add_password", website="https://example.com",
+                           username="demo", password="NewFake!", note="",
+                           overwrite=True)
+        self.assertTrue(result["success"], result)
+        self.assertTrue(result["updated"])
+        self.assertEqual(result["id"], first_id)
+        self.assertEqual(len(self.call("get_passwords")["accounts"]), 1)
+        revealed = self.call("reveal_password", id=first_id,
+                             master_password=self.MASTER)
+        self.assertEqual(revealed["password"], "NewFake!")
+        # Ghi chu cu duoc giu khi ghi chu moi de trong.
+        self.assertEqual(self.call("get_passwords")["accounts"][0]["note"], "test note")
+
+    def test_same_site_different_username_is_not_duplicate(self):
+        self.create_and_unlock()
+        self.add_demo(username="alice")
+        self.add_demo(username="bob")
+        self.assertEqual(len(self.call("get_passwords")["accounts"]), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

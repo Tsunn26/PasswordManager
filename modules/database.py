@@ -133,6 +133,11 @@ def _check_url(url) -> str:
     return url
 
 
+def _normalize_url(url: str) -> str:
+    """Chuẩn hóa url để so sánh trùng: bỏ '/' cuối, chữ thường (khớp với SQL)."""
+    return url.strip().rstrip("/").lower()
+
+
 def _check_blob(value, name: str) -> bytes:
     if not isinstance(value, (bytes, bytearray, memoryview)):
         raise ValueError(f"{name} phải là bytes")
@@ -214,6 +219,27 @@ def search_account(keyword: str) -> list:
             "SELECT id, url, created_at, updated_at FROM password_entries "
             "WHERE url LIKE ? ESCAPE '\\' COLLATE NOCASE ORDER BY id DESC",
             (f"%{escaped}%",),
+        ).fetchall()
+    return [_row_to_dict(r) for r in rows]
+
+
+def find_accounts_by_url(url: str) -> list:
+    """Tìm các tài khoản có CÙNG website (so khớp chính xác) - phục vụ kiểm tra trùng lặp.
+
+    Khác search_account() (so khớp một phần), hàm này chỉ trả về bản ghi có url
+    trùng hoàn toàn sau khi chuẩn hóa: bỏ khoảng trắng đầu/cuối, bỏ dấu '/' ở cuối,
+    không phân biệt hoa thường. Ví dụ "HTTPS://Example.com/" == "https://example.com".
+
+    Trả về danh sách bản ghi đầy đủ (gồm encrypted_data, nonce) để tầng trên giải mã
+    và so sánh username (database.py không tự giải mã).
+    """
+    normalized = _normalize_url(_check_url(url))
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id, url, encrypted_data, nonce, created_at, updated_at "
+            "FROM password_entries "
+            "WHERE LOWER(RTRIM(TRIM(url), '/')) = ? ORDER BY id",
+            (normalized,),
         ).fetchall()
     return [_row_to_dict(r) for r in rows]
 

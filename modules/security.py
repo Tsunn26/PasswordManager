@@ -185,7 +185,27 @@ def save_password(website, username, password, key, note=""):
         nonce,
     )
 
-"""   
+def find_duplicate(website, username, key):
+    """Tìm tài khoản đã lưu trùng website + username.
+
+    database.py chỉ lọc theo website (username đang được mã hóa), sau đó hàm này giải
+    mã từng bản ghi cùng website để so sánh username (bỏ khoảng trắng, không phân
+    biệt hoa thường). Trả về id của tài khoản trùng đầu tiên, hoặc None.
+    """
+    wanted = username.strip().casefold()
+
+    for account in db.find_accounts_by_url(website):
+        payload = json.loads(
+            decrypt_password(account["encrypted_data"], account["nonce"], key)
+        )
+
+        if payload.get("username", "").strip().casefold() == wanted:
+            return account["id"]
+
+    return None
+
+
+"""
 def get_passwords(key):
     #Lấy và giải mã danh sách tài khoản.
     results = []

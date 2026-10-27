@@ -139,6 +139,34 @@ class PasswordHandler:
         if not isinstance(note, str):
             raise ValueError("Note không hợp lệ.")
 
+        # Kiểm tra trùng lặp (cùng website + username).
+        duplicate_id = security.find_duplicate(website, username, self.key)
+
+        if duplicate_id is not None:
+            # Người dùng đã đồng ý cập nhật -> ghi đè mật khẩu (và ghi chú nếu có).
+            if request.get("overwrite") is True:
+                security.update_password(
+                    duplicate_id,
+                    self.key,
+                    password=password,
+                    note=note if note else None
+                )
+
+                return {
+                    "success": True,
+                    "id": duplicate_id,
+                    "updated": True
+                }
+
+            # Chưa xác nhận -> chưa lưu gì, hỏi lại người dùng.
+            return {
+                "success": False,
+                "duplicate": True,
+                "id": duplicate_id,
+                "error": "Tài khoản đã tồn tại. "
+                         "Bạn có muốn cập nhật mật khẩu mới không?"
+            }
+
         account_id = security.save_password(
             website,
             username,
