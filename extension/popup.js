@@ -458,7 +458,24 @@ async function saveAccount(event) {
     }
 
     try {
-        await sendRequest(request);
+        const result = await sendRequest(request);
+
+        // Chi khi them moi Backend moi tra ve trang thai kiem tra trung.
+        if (editingId === null) {
+            // Trung ca website, username va password: chi bao, khong luu.
+            if (result.status === "duplicate_same_password") {
+                showMessage(
+                    "Tài khoản này đã tồn tại với cùng mật khẩu."
+                );
+                return;
+            }
+
+            // Trung website + username nhung khac password: hoi cap nhat.
+            if (result.status === "duplicate_diff_password") {
+                await confirmUpdateExisting(result.id, request);
+                return;
+            }
+        }
 
         resetForm();
         await loadAccounts($("search-input").value);
@@ -466,6 +483,37 @@ async function saveAccount(event) {
     } catch (error) {
         showMessage(error.message);
     }
+}
+
+// Hoi nguoi dung co muon cap nhat mat khau cua tai khoan da ton tai.
+// existingId la ID ban ghi trung do Backend tra ve.
+async function confirmUpdateExisting(existingId, request) {
+    const agreed = confirm(
+        "Tài khoản này (cùng website và username) đã tồn tại " +
+        "nhưng khác mật khẩu.\n\nBạn có muốn cập nhật mật khẩu mới không?"
+    );
+
+    if (!agreed) {
+        showMessage("Đã giữ nguyên mật khẩu cũ.");
+        return;
+    }
+
+    const updateRequest = {
+        action: "update_password",
+        id: existingId,
+        password: request.password
+    };
+
+    // Chi ghi de ghi chu khi nguoi dung co nhap ghi chu moi.
+    if (request.note) {
+        updateRequest.note = request.note;
+    }
+
+    await sendRequest(updateRequest);
+
+    resetForm();
+    await loadAccounts($("search-input").value);
+    showMessage("Đã cập nhật mật khẩu.", true);
 }
 
 // Xoa tai khoan sau khi nguoi dung xac nhan.

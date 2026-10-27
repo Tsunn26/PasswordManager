@@ -9,6 +9,7 @@ Nhiệm vụ:
 - Trả kết quả xử lý dưới dạng dictionary.
 """
 import json
+import hmac
 from modules import database as db
 from modules import security
 
@@ -139,6 +140,29 @@ class PasswordHandler:
         if not isinstance(note, str):
             raise ValueError("Note không hợp lệ.")
 
+        # Kiểm tra trùng url + username trước khi thêm.
+        # Username nằm trong dữ liệu đã mã hóa nên phải giải mã để so sánh.
+        duplicate = self._find_duplicate(website, username, password)
+
+        if duplicate is not None:
+            existing_id, same_password = duplicate
+
+            if same_password:
+                # Trùng cả url, username và password: chỉ báo, không lưu.
+                return {
+                    "success": True,
+                    "status": "duplicate_same_password",
+                    "id": existing_id
+                }
+
+            # Trùng url + username nhưng khác password: để người dùng
+            # quyết định có cập nhật hay không.
+            return {
+                "success": True,
+                "status": "duplicate_diff_password",
+                "id": existing_id
+            }
+
         account_id = security.save_password(
             website,
             username,
@@ -149,8 +173,57 @@ class PasswordHandler:
 
         return {
             "success": True,
+            "status": "added",
             "id": account_id
-        }
+        }   
+
+    # Chuẩn hóa URL chỉ để so sánh: bỏ khoảng trắng, không phân biệt
+    # hoa thường và bỏ dấu "/" ở cuối. Dữ liệu lưu vào DB không bị đổi.
+    @staticmethod
+    def _normalize_url(url):
+        return url.strip().lower().rstrip("/")
+
+    # Tìm tài khoản đã có cùng url + username.
+    # Trả về None nếu không trùng, ngược lại trả về (id, same_password):
+    #   same_password = True  -> trùng cả mật khẩu.
+    #   same_password = False -> khác mật khẩu (id là bản ghi đầu tiên tìm thấy).
+    def _find_duplicate(self, website, username, password):
+        target_url = self._normalize_url(website)
+        new_password = password.encode("utf-8")
+        first_match_id = None
+
+        for item in db.get_accounts():
+            if self._normalize_url(item["url"]) != target_url:
+                continue
+
+            account = db.get_account(item["id"])
+
+            if account is None:
+                continue
+
+            plaintext = security.decrypt_password(
+                account["encrypted_data"],
+                account["nonce"],
+                self.key
+            )
+            payload = json.loads(plaintext)
+
+            if payload.get("username") != username:
+                continue
+
+            # So sánh hằng thời gian để tránh rò rỉ qua thời gian xử lý.
+            stored_password = payload.get("password", "").encode("utf-8")
+
+            if hmac.compare_digest(stored_password, new_password):
+                return account["id"], True
+
+            if first_match_id is None:
+                first_match_id = account["id"]
+
+        if first_match_id is not None:
+            return first_match_id, False
+
+        return None
 
     # Lấy danh sách tài khoản đã lưu trong Vault.
     # security.py đọc dữ liệu từ database và giải mã bằng khóa AES.

@@ -161,6 +161,91 @@ class HandlerTests(unittest.TestCase):
                              master_password=self.MASTER)
         self.assertEqual(revealed["password"], "AfterFake!")
 
+    # ----- Kiem tra trung khi them tai khoan -----
+    def test_add_new_account_returns_added_status(self):
+        self.create_and_unlock()
+        result = self.call("add_password", website="https://a.test",
+                           username="u", password="p1")
+        self.assertTrue(result["success"])
+        self.assertEqual(result["status"], "added")
+        self.assertEqual(len(db.get_accounts()), 1)
+
+    def test_duplicate_same_password_is_reported_and_not_saved(self):
+        self.create_and_unlock()
+        first_id = self.add_demo(password="SamePass1!")
+        result = self.call("add_password", website="https://example.com",
+                           username="demo", password="SamePass1!")
+        self.assertTrue(result["success"])
+        self.assertEqual(result["status"], "duplicate_same_password")
+        self.assertEqual(result["id"], first_id)
+        self.assertEqual(len(db.get_accounts()), 1)
+
+    def test_duplicate_different_password_asks_and_does_not_overwrite(self):
+        self.create_and_unlock()
+        first_id = self.add_demo(password="OldPass1!")
+        result = self.call("add_password", website="https://example.com",
+                           username="demo", password="NewPass2!")
+        self.assertTrue(result["success"])
+        self.assertEqual(result["status"], "duplicate_diff_password")
+        self.assertEqual(result["id"], first_id)
+        self.assertEqual(len(db.get_accounts()), 1)
+        revealed = self.call("reveal_password", id=first_id,
+                             master_password=self.MASTER)
+        self.assertEqual(revealed["password"], "OldPass1!")
+
+    def test_confirm_update_after_duplicate_changes_password(self):
+        self.create_and_unlock()
+        self.add_demo(password="OldPass1!")
+        dup = self.call("add_password", website="https://example.com",
+                        username="demo", password="NewPass2!")
+        self.assertEqual(dup["status"], "duplicate_diff_password")
+        updated = self.call("update_password", id=dup["id"], password="NewPass2!")
+        self.assertTrue(updated["success"])
+        revealed = self.call("reveal_password", id=dup["id"],
+                             master_password=self.MASTER)
+        self.assertEqual(revealed["password"], "NewPass2!")
+        self.assertEqual(len(db.get_accounts()), 1)
+
+    def test_same_url_different_username_is_not_duplicate(self):
+        self.create_and_unlock()
+        self.add_demo(username="alice", password="p")
+        result = self.call("add_password", website="https://example.com",
+                           username="bob", password="p")
+        self.assertEqual(result["status"], "added")
+        self.assertEqual(len(db.get_accounts()), 2)
+
+    def test_same_username_different_url_is_not_duplicate(self):
+        self.create_and_unlock()
+        self.add_demo(website="https://a.test", username="demo", password="p")
+        result = self.call("add_password", website="https://b.test",
+                           username="demo", password="p")
+        self.assertEqual(result["status"], "added")
+        self.assertEqual(len(db.get_accounts()), 2)
+
+    def test_url_is_normalized_when_checking_duplicate(self):
+        self.create_and_unlock()
+        self.add_demo(website="https://Example.com", password="p")
+        for variant in ("https://example.com/", "  https://EXAMPLE.com  "):
+            result = self.call("add_password", website=variant,
+                               username="demo", password="p")
+            self.assertEqual(result["status"], "duplicate_same_password", variant)
+        self.assertEqual(len(db.get_accounts()), 1)
+
+    def test_username_is_case_sensitive(self):
+        self.create_and_unlock()
+        self.add_demo(username="Demo", password="p")
+        result = self.call("add_password", website="https://example.com",
+                           username="demo", password="p")
+        self.assertEqual(result["status"], "added")
+
+    def test_same_password_match_wins_over_other_entry(self):
+        self.create_and_unlock()
+        self.add_demo(password="First1!")
+        security.save_password("https://example.com", "demo", "Second2!", self.handler.key)
+        result = self.call("add_password", website="https://example.com",
+                           username="demo", password="Second2!")
+        self.assertEqual(result["status"], "duplicate_same_password")
+        self.assertEqual(len(db.get_accounts()), 2)
 
 if __name__ == "__main__":
     unittest.main()
