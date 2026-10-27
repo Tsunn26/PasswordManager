@@ -1,4 +1,3 @@
-
 """Module Security cho Password Manager.
 
 Phụ trách:
@@ -31,7 +30,7 @@ VERIFICATION_TEXT = b"password-vault-verification"
 def derive_key(master_password, salt, iterations=ITERATIONS):
     """Dẫn xuất khóa 32 byte từ Master Password."""
     if not isinstance(master_password, str) or not master_password:
-        raise ValueError("Master Password không được để trong.")
+        raise ValueError("Master Password không được để trống.")
 
     if not isinstance(salt, bytes) or len(salt) < 16:
         raise ValueError("Salt không hợp lệ.")
@@ -185,37 +184,6 @@ def save_password(website, username, password, key, note=""):
         nonce,
     )
 
-"""   
-def get_passwords(key):
-    #Lấy và giải mã danh sách tài khoản.
-    results = []
-
-    for item in db.get_accounts():
-        account = db.get_account(item["id"])
-
-        if account is None:
-            continue
-
-        plaintext = decrypt_password(
-            account["encrypted_data"],
-            account["nonce"],
-            key,
-        )
-
-        payload = json.loads(plaintext)
-
-        results.append({
-            "id": account["id"],
-            "website": account["url"],
-            "username": payload["username"],
-            "password": payload["password"],
-            "note": payload.get("note", ""),
-            "created_at": account["created_at"],
-            "updated_at": account["updated_at"],
-        })
-
-    return results
-"""
 
 def update_password(
     account_id,
@@ -225,7 +193,7 @@ def update_password(
     password=None,
     note=None,
 ):
-    #Cập nhật tài khoản; giữ nguyên trường nhạy cảm không được chỉ định.#
+    """Cập nhật tài khoản; giữ nguyên trường nhạy cảm không được chỉ định."""
     account = db.get_account(account_id)
 
     if account is None:
@@ -268,10 +236,10 @@ def update_password(
 
 
 def delete_password(account_id):
-    #Xóa tài khoản qua database.
+    """Xóa tài khoản qua database."""
     return db.delete_account(account_id)
 
-# thêm hàm xem mật khẩu
+
 def get_password(account_id, key):
     """Lấy mật khẩu của một tài khoản theo ID."""
     account = db.get_account(account_id)

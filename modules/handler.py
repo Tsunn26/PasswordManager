@@ -1,4 +1,3 @@
-
 """Module Handler - Xử lý yêu cầu của Password Manager.
 
 Nhiệm vụ:
@@ -49,7 +48,7 @@ class PasswordHandler:
 
             elif action == "get_passwords":
                 return self.get_passwords()
-            
+
             elif action == "reveal_password":
                 return self.reveal_password(request)
 
@@ -79,6 +78,37 @@ class PasswordHandler:
     def _require_unlock(self):
         if self.key is None:
             raise ValueError("Vault đang khóa.")
+
+    # Tìm tài khoản trùng website + username.
+    # Username nằm trong dữ liệu đã mã hóa nên phải giải mã để so sánh.
+    # Trả về (id, cùng_password) nếu trùng, ngược lại trả về None.
+    def _find_duplicate(self, website, username, password):
+        target_url = website.strip().lower()
+
+        for account in db.get_accounts():
+            if account["url"].strip().lower() != target_url:
+                continue
+
+            full_account = db.get_account(account["id"])
+
+            if full_account is None:
+                continue
+
+            plaintext = security.decrypt_password(
+                full_account["encrypted_data"],
+                full_account["nonce"],
+                self.key
+            )
+            payload = json.loads(plaintext)
+
+            if payload.get("username") == username:
+                same_password = hmac.compare_digest(
+                    payload.get("password", "").encode("utf-8"),
+                    password.encode("utf-8")
+                )
+                return account["id"], same_password
+
+        return None
 
     # Tạo Vault mới bằng Master Password.
     # Gọi security.py để sinh salt, dẫn xuất khóa và lưu metadata.
@@ -141,7 +171,6 @@ class PasswordHandler:
             raise ValueError("Note không hợp lệ.")
 
         # Kiểm tra trùng url + username trước khi thêm.
-        # Username nằm trong dữ liệu đã mã hóa nên phải giải mã để so sánh.
         duplicate = self._find_duplicate(website, username, password)
 
         if duplicate is not None:
@@ -175,55 +204,7 @@ class PasswordHandler:
             "success": True,
             "status": "added",
             "id": account_id
-        }   
-
-    # Chuẩn hóa URL chỉ để so sánh: bỏ khoảng trắng, không phân biệt
-    # hoa thường và bỏ dấu "/" ở cuối. Dữ liệu lưu vào DB không bị đổi.
-    @staticmethod
-    def _normalize_url(url):
-        return url.strip().lower().rstrip("/")
-
-    # Tìm tài khoản đã có cùng url + username.
-    # Trả về None nếu không trùng, ngược lại trả về (id, same_password):
-    #   same_password = True  -> trùng cả mật khẩu.
-    #   same_password = False -> khác mật khẩu (id là bản ghi đầu tiên tìm thấy).
-    def _find_duplicate(self, website, username, password):
-        target_url = self._normalize_url(website)
-        new_password = password.encode("utf-8")
-        first_match_id = None
-
-        for item in db.get_accounts():
-            if self._normalize_url(item["url"]) != target_url:
-                continue
-
-            account = db.get_account(item["id"])
-
-            if account is None:
-                continue
-
-            plaintext = security.decrypt_password(
-                account["encrypted_data"],
-                account["nonce"],
-                self.key
-            )
-            payload = json.loads(plaintext)
-
-            if payload.get("username") != username:
-                continue
-
-            # So sánh hằng thời gian để tránh rò rỉ qua thời gian xử lý.
-            stored_password = payload.get("password", "").encode("utf-8")
-
-            if hmac.compare_digest(stored_password, new_password):
-                return account["id"], True
-
-            if first_match_id is None:
-                first_match_id = account["id"]
-
-        if first_match_id is not None:
-            return first_match_id, False
-
-        return None
+        }
 
     # Lấy danh sách tài khoản đã lưu trong Vault.
     # security.py đọc dữ liệu từ database và giải mã bằng khóa AES.
@@ -317,7 +298,7 @@ class PasswordHandler:
 
     # Tìm kiếm tài khoản theo website.
     # database.py tìm ID phù hợp, security.py giải mã dữ liệu.
-    # Chỉ trả về các tài khoản trung với kết quả tìm kiếm.
+    # Chỉ trả về các tài khoản trùng với kết quả tìm kiếm.
     def search_password(self, request):
         self._require_unlock()
 
