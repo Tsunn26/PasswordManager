@@ -114,12 +114,27 @@ def init_db() -> None:
                 updated_at     TEXT NOT NULL
             )
             """
-        )
+        ) ######################################## Cập nhật #############################################
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_password_entries_url "
             "ON password_entries (url)"
         )
-
+        conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS login_attempts (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            failed_attempts INTEGER NOT NULL DEFAULT 0,
+            locked_until REAL NOT NULL DEFAULT 0
+        )
+        """
+        )
+        conn.execute(
+        """
+        INSERT OR IGNORE INTO login_attempts
+        (id, failed_attempts, locked_until)
+        VALUES (1, 0, 0)
+        """
+    )
 
 # ---------------------------------------------------------------------------
 # Kiểm tra đầu vào
@@ -323,3 +338,31 @@ def get_vault_metadata() -> Optional[dict]:
             "FROM vault_metadata WHERE id = 1"
         ).fetchone()
     return _row_to_dict(row) if row else None
+################################ Cập nhật ###############################################
+def get_login_attempts():
+    with _connect() as conn:
+        row = conn.execute(
+            """
+            SELECT failed_attempts, locked_until
+            FROM login_attempts
+            WHERE id = 1
+            """
+        ).fetchone()
+
+    return dict(row)
+
+
+def update_login_attempts(failed_attempts, locked_until):
+    with _connect() as conn:
+        conn.execute(
+            """
+            UPDATE login_attempts
+            SET failed_attempts = ?, locked_until = ?
+            WHERE id = 1
+            """,
+            (failed_attempts, locked_until)
+        )
+
+
+def reset_login_attempts():
+    update_login_attempts(0, 0)

@@ -11,7 +11,8 @@ Nhiem vu:
 import json
 from modules import database as db
 from modules import security
-
+##### Cập nhập #########
+import time
 
 class PasswordHandler:
 
@@ -95,6 +96,7 @@ class PasswordHandler:
 
     # Mo khoa Vault bang Master Password.
     # Neu xac minh thanh cong, luu khoa AES vao self.key.
+    """
     def unlock_vault(self, request):
         password = request.get("master_password")
 
@@ -107,7 +109,76 @@ class PasswordHandler:
         return {
             "success": True
         }
+    """
 
+    def unlock_vault(self, request):
+        password = request.get("master_password")
+
+        # Lấy trạng thái đăng nhập
+        attempts = db.get_login_attempts()
+
+        failed = attempts["failed_attempts"]
+        locked_until = attempts["locked_until"]
+
+        current_time = time.time()
+
+        # Kiểm tra đang bị khóa
+        if current_time < locked_until:
+            remaining = int(locked_until - current_time) + 1
+
+            raise ValueError(
+                f"Bạn đã nhập sai 3 lần. "
+                f"Vui lòng thử lại sau {remaining} giây."
+            )
+
+        # Nếu hết thời gian khóa thì reset
+        if locked_until > 0:
+            db.reset_login_attempts()
+            failed = 0
+
+        if not isinstance(password, str) or not password:
+            raise ValueError("Master Password không hợp lệ.")
+
+        try:
+            key = security.unlock_vault(password)
+
+        except ValueError:
+            failed += 1
+
+            # Sai đủ 3 lần
+            if failed >= 3:
+                locked_until = time.time() + 600
+
+                db.update_login_attempts(
+                    failed,
+                    locked_until
+                )
+
+                raise ValueError(
+                    "Bạn đã nhập sai Master Password 3 lần. "
+                    "Vault bị khóa trong 10 phút."
+                )
+
+            # Chưa đủ 3 lần
+            db.update_login_attempts(failed, 0)
+
+            raise ValueError(
+                f"Master Password không đúng. "
+                f"Bạn còn {3 - failed} lần thử."
+            )
+
+        # Đăng nhập thành công
+        db.reset_login_attempts()
+
+        self.key = key
+
+        return {
+            "success": True
+        }
+
+    
+    
+    
     # Khoa Vault bang cach xoa tham chieu den khoa AES.
     # Sau khi khoa, cac thao tac voi tai khoan se bi tu choi.
     def lock_vault(self):
@@ -116,6 +187,7 @@ class PasswordHandler:
         return {
             "success": True
         }
+  
 
     # Them tai khoan moi vao Vault.
     # security.py ma hoa username, password va note truoc khi luu.
@@ -306,3 +378,78 @@ class PasswordHandler:
             "success": True,
             "password": payload["password"]
         }
+
+
+# --- Chrome Native Messaging entry point ---
+import struct
+import sys
+
+
+def read_message():
+    """Doc mot message theo giao thuc Chrome Native Messaging."""
+    raw_length = sys.stdin.buffer.read(4)
+
+    if not raw_length:
+        return None
+
+    if len(raw_length) != 4:
+        raise ValueError("Header Native Messaging khong hop le.")
+
+    message_length = struct.unpack("<I", raw_length)[0]
+
+    # Gioi han bao ve, tranh doc payload qua lon.
+    if message_length > 1024 * 1024:
+        raise ValueError("Message vuot qua gioi han 1 MB.")
+
+    payload = sys.stdin.buffer.read(message_length)
+
+    if len(payload) != message_length:
+        raise ValueError("Message Native Messaging bi thieu du lieu.")
+
+    return json.loads(payload.decode("utf-8"))
+
+
+def write_message(message):
+    """Gui mot message JSON ve Chrome."""
+    payload = json.dumps(
+        message,
+        ensure_ascii=False
+    ).encode("utf-8")
+
+    sys.stdout.buffer.write(struct.pack("<I", len(payload)))
+    sys.stdout.buffer.write(payload)
+    sys.stdout.buffer.flush()
+
+
+def main():
+    handler = PasswordHandler()
+
+    while True:
+        try:
+            request = read_message()
+
+            if request is None:
+                break
+
+            response = handler.handle(request)
+            write_message(response)
+
+        except Exception:
+            # Khong ghi log vao stdout vi stdout la kenh giao tiep.
+            print(
+                "Native host request failed",
+                file=sys.stderr,
+                flush=True
+            )
+
+            try:
+                write_message({
+                    "success": False,
+                    "error": "Không thể xử lý yêu cầu Native Host."
+                })
+            except Exception:
+                break
+
+
+if __name__ == "__main__":
+    main()
